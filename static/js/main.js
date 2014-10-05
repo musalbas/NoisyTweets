@@ -1,8 +1,16 @@
-var graphLabels = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
-var graphData =   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+// settings
+var graphSize = 50;
+
+var graphLabels = [];
+var graphData = [];
+var graphBaseLine = [];
+for (var i = 0; i < graphSize; ++i) {
+	graphLabels[i] = "";
+	graphData[i] = 0;
+	graphBaseLine[i] = 0;
+}
 
 var pendingMoodQueue = [];
-var lastMoodPushed = 0;
 
 var playing = true;
 
@@ -14,14 +22,11 @@ var data = {
     labels: graphLabels,
     datasets: [
         {
-            fillColor: "transparent",
-            strokeColor: "rgba(40,40,40,1)",
-            pointColor: "rgba(220,220,220,1)",
-            pointStrokeColor: "#fff",
-            pointHighlightFill: "#ffaaaa",
-            pointHighlightStroke: "rgba(220,220,220,1)",
             data: graphData
-        }
+        },
+		{
+			data: graphBaseLine
+		}
     ]
 };
 
@@ -32,8 +37,9 @@ new Chart(ctx).Line(data, {
 	showScale: true,
 	scaleOverride: true,
 	scaleStartValue: -100,
-	scaleStepWidth: 10,
-	scaleSteps: 20
+	scaleStepWidth: 100,
+	scaleSteps: 2,
+	scaleLabel: "<%=value%>"
 });
 
 redraw = function() {
@@ -41,13 +47,14 @@ redraw = function() {
     var data = {
         labels: graphLabels,
         datasets: [
+			{
+				fillColor: "transparent",
+				strokeColor: "#c0c0c0",
+				data: graphBaseLine
+			},
             {
-                fillColor: "transparent",
-                strokeColor: "rgba(40,40,40,1)",
-                pointColor: "rgba(220,220,220,1)",
-                pointStrokeColor: "#fff",
-                pointHighlightFill: "#ffaaaa",
-                pointHighlightStroke: "rgba(220,220,220,1)",
+				fillColor: "transparent",
+				strokeColor: "#333333",
                 data: graphData
             }
         ]
@@ -56,12 +63,17 @@ redraw = function() {
     new Chart(ctx).Line(data, {
         animation: false,
         scaleShowGridLines: false,
-        scaleShowLabels: false,
+        scaleShowLabels: true,
+		showTooltips: false,
 		showScale: true,
 		scaleOverride: true,
 		scaleStartValue: -100,
-		scaleStepWidth: 10,
-		scaleSteps: 20
+		scaleStepWidth: 25,
+		scaleSteps: 8,
+		scaleLabel: "<%=(value==100?'☀':(value==-100?'☂':(value==0?'☁':'')))%>",
+		scaleFontSize: 32,
+		scaleFontStyle: "bold",
+		pointDot: false
     });
 };
 
@@ -84,22 +96,24 @@ addTweet = function(tweet_message, mood) {
         style = "super-success";
     }
 
-	$('<tr class="' + style + '"><td>' + tweet_message + '</td><td>' + mood + '</td></tr>').prependTo('tbody');
-	$('tbody').find('tr').slice(20,1000).remove();
+	$('<tr class="' + style + '"><td>' + tweet_message + '</td><td style="text-align: center;">' + mood + '</td></tr>').prependTo('#tweets-table tbody');
+	$('#tweets-table').find('tbody').find('tr').slice(20,1000).remove();
 };
 
 // add emoji
 addEmoji = function(imgLink) {
-    $('<img src="static/emoji-data/img-hangouts-28/' + imgLink + '" />').prependTo('div#emojis-section p');
-	$('div#emojis-section p').find('img').slice(20,1000).remove();
+    $('<img src="static/emoji-data/img-hangouts-28/' + imgLink + '" />&nbsp;&nbsp;&nbsp;').prependTo('div#emojis-section p');
+	$('div#emojis-section p').find('img').slice(40,42).remove();
 };
 
 // process all moods that have arrived since the last cycle
 processMoodQueue = function() {
 
 	// calc average of latest moods
-    var averageMood = lastMoodPushed;
+    var averageMood = 0;
+	var newSound = false;
     if(pendingMoodQueue.length != 0) {
+		newSound = true;
         var sum = 0;
         for(var i = 0; i < pendingMoodQueue.length; ++i) {
             sum += pendingMoodQueue[i];
@@ -110,7 +124,7 @@ processMoodQueue = function() {
 
 	if (playing) {
 		// play sound
-		playSound(averageMood);
+		if (newSound) playSound(averageMood);
 
 		// add to graph
 		graphData.shift();
@@ -118,13 +132,10 @@ processMoodQueue = function() {
 		redraw();
 	}
 
-	// store
-    lastMoodPushed = averageMood;
-
 	// repeat
     setTimeout(function() {
         processMoodQueue();
-    }, 250);
+    }, 100);
 };
 
 processMoodQueue();
@@ -140,4 +151,13 @@ $('#play-btn').click(function() {
 		$(this).removeClass('glyphicon-pause');
 		$(this).addClass('glyphicon-play');
 	}
+});
+
+// change keyword
+changeKeyword = function (new_keyword) {
+	NT.changeKeyword(new_keyword);
+};
+
+$('#change-btn').click(function (){
+	changeKeyword(prompt("New keyword?"));
 });
